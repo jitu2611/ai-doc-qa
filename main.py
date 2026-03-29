@@ -3,6 +3,7 @@ import json
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import PyPDF2
 from anthropic import Anthropic
 from openai import OpenAI
@@ -11,6 +12,9 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 app = FastAPI(title="AI Document Q&A System - Multi-Provider")
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # CORS setup
 app.add_middleware(
