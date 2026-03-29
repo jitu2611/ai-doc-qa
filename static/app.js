@@ -6,6 +6,8 @@ const askBtn = document.getElementById('askBtn');
 const documentsList = document.getElementById('documentsList');
 const messagesContainer = document.getElementById('messagesContainer');
 const statusMessage = document.getElementById('statusMessage');
+const providerSelect = document.getElementById('providerSelect');
+const providerStatus = document.getElementById('providerStatus');
 
 uploadArea.addEventListener('click', () => fileInput.click());
 uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.background = '#e8ebff'; });
@@ -84,12 +86,15 @@ async function askQuestion() {
         const response = await fetch(`${API_BASE}/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question })
+            body: JSON.stringify({
+                question,
+                provider: providerSelect.value
+            })
         });
         const data = await response.json();
         if (response.ok) {
             addMessage('answer', data.answer);
-            showStatus(`✓ Answer generated using ${data.documents_used.length} document(s)`, 'success');
+            showStatus(`✓ ${data.model} • ${data.documents_used.length} document(s)`, 'success');
         } else {
             addMessage('answer', `Error: ${data.detail}`);
         }
@@ -133,4 +138,40 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
+async function loadProviders() {
+    try {
+        const response = await fetch(`${API_BASE}/providers`);
+        const data = await response.json();
+
+        // Update provider selector based on availability
+        const providers = data.providers;
+        let availableCount = 0;
+        let statusText = '';
+
+        providers.forEach(provider => {
+            const option = Array.from(providerSelect.options).find(o => o.value === provider.name);
+            if (option) {
+                if (provider.available) {
+                    availableCount++;
+                    option.text = `${provider.model} ✅`;
+                } else {
+                    option.disabled = true;
+                    option.text = `${provider.model} (not configured)`;
+                }
+            }
+        });
+
+        if (availableCount === 0) {
+            providerStatus.textContent = '⚠️ No providers configured';
+            providerSelect.disabled = true;
+        } else {
+            providerStatus.textContent = `${availableCount} provider(s) ready`;
+            providerSelect.disabled = false;
+        }
+    } catch (error) {
+        console.error('Failed to load providers:', error);
+    }
+}
+
+loadProviders();
 loadDocuments();

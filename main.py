@@ -3,15 +3,14 @@ import json
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import PyPDF2
 from anthropic import Anthropic
+from openai import OpenAI
 from pydantic import BaseModel
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
-import re
 
-app = FastAPI(title="AI Document Q&A System")
+app = FastAPI(title="AI Document Q&A System - Multi-Provider")
 
 # CORS setup
 app.add_middleware(
@@ -22,20 +21,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Anthropic client
-client = Anthropic()
+# Initialize AI clients
+anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+openrouter_client = OpenAI(
+    api_key=os.getenv("OPENROUTER_KEY", ""),
+    base_url="https://openrouter.io/api/v1"
+)
 
-# In-memory storage for documents and embeddings
+# In-memory storage for documents
 documents_store = {}
 vectorizer = TfidfVectorizer(max_features=100, stop_words='english')
-document_vectors = None
 
 class QueryRequest(BaseModel):
     question: str
-
-class DocumentChunk(BaseModel):
-    filename: str
-    content: str
+    provider: str = "claude"
 
 def extract_text_from_pdf(file):
     """Extract text from uploaded PDF file"""
@@ -125,51 +124,87 @@ async def upload_document(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/query")
-async def query_document(request: QueryRequest):
-    """Query uploaded documents using AI"""
-    if not documents_store:
-        raise HTTPException(status_code=400, detail="No documents uploaded. Please upload a document first.")
-
-    try:
-        # Collect all chunks from all documents
-        all_chunks = []
-        doc_names = []
-        for doc_id, doc_data in documents_store.items():
-            all_chunks.extend(doc_data["chunks"])
-            doc_names.append(doc_data["filename"])
-
-        # Find relevant chunks
-        relevant_chunks = find_relevant_chunks(request.question, all_chunks, top_k=5)
-        context = "\n\n".join(relevant_chunks)
-
-        # Prepare prompt for Claude
-        system_prompt = """You are a helpful AI assistant specialized in answering questions about uploaded documents.
+def query_claude(question, context):
+    """Query Claude API"""
+    system_prompt = """You are a helpful AI assistant specialized in answering questions about uploaded documents.
 Use the provided document content to answer questions accurately. If the answer is not found in the documents,
 clearly state that the information is not available in the provided documents."""
 
-        user_message = f"""Question: {request.question}
+    user_message = f"""Question: {question}
 
 Relevant document content:
 {context}
 
 Please answer the question based on the provided document content."""
 
-        # Query Claude API
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1024,
-            system=system_prompt,
-            messages=[
-                {"role": "user", "content": user_message}
-            ]
-        )
+    response = anthropic_client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1024,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_message}]
+    )
+    return response.content[0].text
 
-        answer = response.content[0].text
+def query_openrouter(question, context):
+    """Query via OpenRouter (OpenAI-compatible)"""
+    system_prompt = """You are a helpful AI assistant specialized in answering questions about uploaded documents.
+Use the provided document content to answer questions accurately. If the answer is not found in the documents,
+clearly state that the information is not available in the provided documents."""
+
+    user_message = f"""Question: {question}
+
+Relevant document content:
+{context}
+
+Please answer the question based on the provided document content."""
+
+    response = openrouter_client.chat.completions.create(
+        model="openai/gpt-4o",
+        max_tokens=1024,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    return response.choices[0].message.content
+
+@app.post("/query")
+async def query_document(request: QueryRequest):
+    """Query uploaded documents using selected AI provider"""
+    if not documents_store:
+        raise HTTPException(status_code=400, detail="No documents uploaded. Please upload a document first.")
+
+    if request.provider not in ["claude", "openrouter"]:
+        raise HTTPException(status_code=400, detail="Provider must be 'claude' or 'openrouter'")
+
+    if request.provider == "claude" and not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=400, detail="ANTHROPIC_API_KEY not configured")
+
+    if request.provider == "openrouter" and not os.getenv("OPENROUTER_KEY"):
+        raise HTTPException(status_code=400, detail="OPENROUTER_KEY not configured")
+
+    try:
+        all_chunks = []
+        doc_names = []
+        for doc_id, doc_data in documents_store.items():
+            all_chunks.extend(doc_data["chunks"])
+            doc_names.append(doc_data["filename"])
+
+        relevant_chunks = find_relevant_chunks(request.question, all_chunks, top_k=5)
+        context = "\n\n".join(relevant_chunks)
+
+        if request.provider == "claude":
+            answer = query_claude(request.question, context)
+            model_used = "Claude 3.5 Sonnet"
+        else:
+            answer = query_openrouter(request.question, context)
+            model_used = "GPT-4o (via OpenRouter)"
 
         return JSONResponse({
             "question": request.question,
             "answer": answer,
+            "provider": request.provider,
+            "model": model_used,
             "documents_used": doc_names,
             "chunks_used": len(relevant_chunks)
         })
@@ -202,6 +237,29 @@ async def delete_document(doc_id: str):
     return JSONResponse({
         "success": True,
         "message": f"Document '{filename}' deleted successfully"
+    })
+
+@app.get("/providers")
+async def get_providers():
+    """Get available AI providers and their status"""
+    anthropic_available = bool(os.getenv("ANTHROPIC_API_KEY"))
+    openrouter_available = bool(os.getenv("OPENROUTER_KEY"))
+
+    return JSONResponse({
+        "providers": [
+            {
+                "name": "claude",
+                "model": "Claude 3.5 Sonnet",
+                "available": anthropic_available,
+                "status": "✅ Ready" if anthropic_available else "❌ API key missing"
+            },
+            {
+                "name": "openrouter",
+                "model": "GPT-4o (via OpenRouter)",
+                "available": openrouter_available,
+                "status": "✅ Ready" if openrouter_available else "❌ API key missing"
+            }
+        ]
     })
 
 @app.get("/")

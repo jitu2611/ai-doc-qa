@@ -26,12 +26,15 @@
         .delete-btn { background: #ff6b6b; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
         .delete-btn:hover { background: #ff5252; }
         .query-section { display: flex; gap: 10px; margin-bottom: 20px; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em; }
-        input[type="text"]:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+        input[type="text"], select { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em; }
+        input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
         .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
         .btn-primary { background: #667eea; color: white; }
         .btn-primary:hover { background: #5568d3; }
         .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+        .provider-selector { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        .provider-selector label { font-weight: 600; color: #333; min-width: 80px; }
+        .provider-status { font-size: 0.9em; color: #666; margin-left: 5px; }
         .messages-container { max-height: 500px; overflow-y: auto; padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px; }
         .message { margin-bottom: 20px; }
         .message-label { font-weight: 600; color: #667eea; margin-bottom: 8px; font-size: 0.9em; }
@@ -63,6 +66,14 @@
             </div>
             <div class="card">
                 <h2>💬 Ask Questions</h2>
+                <div class="provider-selector">
+                    <label for="providerSelect">AI Provider:</label>
+                    <select id="providerSelect" disabled>
+                        <option value="claude">Claude 3.5 Sonnet</option>
+                        <option value="openrouter">GPT-4o (OpenRouter)</option>
+                    </select>
+                    <span class="provider-status" id="providerStatus"></span>
+                </div>
                 <div class="status-message" id="statusMessage"></div>
                 <div class="messages-container" id="messagesContainer">
                     <div class="empty-state"><p>Upload a document and ask a question</p></div>
