@@ -21,12 +21,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize AI clients
-anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
-openrouter_client = OpenAI(
-    api_key=os.getenv("OPENROUTER_KEY", ""),
-    base_url="https://openrouter.io/api/v1"
-)
+# Initialize AI clients (lazy initialization)
+anthropic_client = None
+openrouter_client = None
+
+def get_anthropic_client():
+    global anthropic_client
+    if anthropic_client is None:
+        api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        if api_key:
+            anthropic_client = Anthropic(api_key=api_key)
+    return anthropic_client
+
+def get_openrouter_client():
+    global openrouter_client
+    if openrouter_client is None:
+        api_key = os.getenv("OPENROUTER_KEY", "")
+        if api_key:
+            openrouter_client = OpenAI(api_key=api_key, base_url="https://openrouter.io/api/v1")
+    return openrouter_client
 
 # In-memory storage for documents
 documents_store = {}
@@ -126,6 +139,10 @@ async def upload_document(file: UploadFile = File(...)):
 
 def query_claude(question, context):
     """Query Claude API"""
+    client = get_anthropic_client()
+    if not client:
+        raise ValueError("ANTHROPIC_API_KEY not configured")
+
     system_prompt = """You are a helpful AI assistant specialized in answering questions about uploaded documents.
 Use the provided document content to answer questions accurately. If the answer is not found in the documents,
 clearly state that the information is not available in the provided documents."""
@@ -137,7 +154,7 @@ Relevant document content:
 
 Please answer the question based on the provided document content."""
 
-    response = anthropic_client.messages.create(
+    response = client.messages.create(
         model="claude-3-5-sonnet-20241022",
         max_tokens=1024,
         system=system_prompt,
@@ -147,6 +164,10 @@ Please answer the question based on the provided document content."""
 
 def query_openrouter(question, context):
     """Query via OpenRouter (OpenAI-compatible)"""
+    client = get_openrouter_client()
+    if not client:
+        raise ValueError("OPENROUTER_KEY not configured")
+
     system_prompt = """You are a helpful AI assistant specialized in answering questions about uploaded documents.
 Use the provided document content to answer questions accurately. If the answer is not found in the documents,
 clearly state that the information is not available in the provided documents."""
@@ -158,7 +179,7 @@ Relevant document content:
 
 Please answer the question based on the provided document content."""
 
-    response = openrouter_client.chat.completions.create(
+    response = client.chat.completions.create(
         model="openai/gpt-4o",
         max_tokens=1024,
         messages=[
