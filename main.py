@@ -13,9 +13,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 app = FastAPI(title="AI Document Q&A System - Multi-Provider")
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # CORS setup
 app.add_middleware(
     CORSMiddleware,
@@ -296,6 +293,9 @@ async def root():
 async def health():
     """Health check endpoint"""
     return JSONResponse({"status": "healthy"})
+
+# Mount static files AFTER all routes
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
     import uvicorn
