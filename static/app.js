@@ -96,7 +96,12 @@ async function askQuestion() {
             addMessage('answer', data.answer);
             showStatus(`✓ ${data.model} • ${data.documents_used.length} document(s)`, 'success');
         } else {
-            addMessage('answer', `Error: ${data.detail}`);
+            let errorMsg = data.detail;
+            if (errorMsg.includes('not configured')) {
+                errorMsg = `⚠️ ${providerSelect.value === 'claude' ? 'Claude' : 'OpenRouter'} API key not set in Vercel environment variables`;
+            }
+            addMessage('answer', `Error: ${errorMsg}`);
+            showStatus(errorMsg, 'error');
         }
     } catch (error) {
         addMessage('answer', `Error: ${error.message}`);
@@ -146,7 +151,7 @@ async function loadProviders() {
         // Update provider selector based on availability
         const providers = data.providers;
         let availableCount = 0;
-        let statusText = '';
+        let firstAvailableProvider = null;
 
         providers.forEach(provider => {
             const option = Array.from(providerSelect.options).find(o => o.value === provider.name);
@@ -154,6 +159,10 @@ async function loadProviders() {
                 if (provider.available) {
                     availableCount++;
                     option.text = `${provider.model} ✅`;
+                    option.disabled = false;
+                    if (!firstAvailableProvider) {
+                        firstAvailableProvider = provider.name;
+                    }
                 } else {
                     option.disabled = true;
                     option.text = `${provider.model} (not configured)`;
@@ -161,11 +170,19 @@ async function loadProviders() {
             }
         });
 
+        // Set default to first available provider
+        if (firstAvailableProvider) {
+            providerSelect.value = firstAvailableProvider;
+        }
+
         if (availableCount === 0) {
             providerStatus.textContent = '⚠️ No providers configured';
             providerSelect.disabled = true;
+        } else if (availableCount === 1) {
+            providerStatus.textContent = '1 provider ready ✅';
+            providerSelect.disabled = false;
         } else {
-            providerStatus.textContent = `${availableCount} provider(s) ready`;
+            providerStatus.textContent = `${availableCount} providers ready ✅`;
             providerSelect.disabled = false;
         }
     } catch (error) {
