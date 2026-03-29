@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Q&A</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; color: white; margin-bottom: 40px; }
+        h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .subtitle { font-size: 1.1em; opacity: 0.9; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        .card h2 { color: #333; margin-bottom: 20px; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        .upload-area { border: 2px dashed #667eea; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; background: #f8f9ff; }
+        .upload-area:hover { background: #eef2ff; border-color: #764ba2; }
+        input[type="file"] { display: none; }
+        .documents-list { margin-top: 20px; }
+        .document-item { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .delete-btn { background: #ff6b6b; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+        .delete-btn:hover { background: #ff5252; }
+        .query-section { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em; }
+        input[type="text"]:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+        .messages-container { max-height: 500px; overflow-y: auto; padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px; }
+        .message { margin-bottom: 20px; }
+        .message-label { font-weight: 600; color: #667eea; margin-bottom: 8px; font-size: 0.9em; }
+        .message-content { background: white; padding: 12px 15px; border-radius: 8px; color: #333; line-height: 1.6; border-left: 4px solid #667eea; }
+        .status-message { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        .status-message.success { background: #d4edda; color: #155724; display: block; }
+        .status-message.error { background: #f8d7da; color: #721c24; display: block; }
+        .empty-state { text-align: center; color: #999; padding: 40px 20px; }
+        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 AI Document Q&A</h1>
+            <p class="subtitle">Upload PDFs and ask intelligent questions powered by AI</p>
+        </header>
+        <div class="main-grid">
+            <div class="card">
+                <h2>📤 Upload Documents</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📄</div>
+                    <p><strong>Click or drag PDF files here</strong></p>
+                    <input type="file" id="fileInput" accept=".pdf">
+                </div>
+                <div class="documents-list" id="documentsList">
+                    <div class="empty-state"><p>No documents uploaded yet</p></div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>💬 Ask Questions</h2>
+                <div class="status-message" id="statusMessage"></div>
+                <div class="messages-container" id="messagesContainer">
+                    <div class="empty-state"><p>Upload a document and ask a question</p></div>
+                </div>
+                <div class="query-section">
+                    <input type="text" id="questionInput" placeholder="Ask a question about your documents..." disabled>
+                    <button class="btn btn-primary" id="askBtn" disabled>Ask</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
