@@ -2,6 +2,12 @@
 
 A modern, intelligent document analyzer powered by Claude AI and FastAPI. Upload PDF documents and ask natural language questions to get AI-powered answers based on your document content.
 
+## 🏗️ How it works
+
+![Document Q&A retrieval flow](docs/document-qa-flow.svg)
+
+The system extracts PDF text, ranks relevant chunks with TF-IDF, and supplies the selected context with the question to the configured Claude model.
+
 ## ✨ Features
 
 - **PDF Upload**: Drag-and-drop interface for uploading PDF documents
